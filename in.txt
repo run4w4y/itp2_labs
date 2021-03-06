@@ -1,5 +1,0 @@
-andrey likes apples. daler likes bananas. vadim likes apples.
-3
-apples
-bananas
-Apples
