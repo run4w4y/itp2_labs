@@ -16,3 +16,11 @@ ITP2 assignments
 In the root folder: `assignment-2/build.sh`
 ### Run the binary
 `builds/assignment-2`
+
+## Assignment 3
+### Requirements
+`g++` 7 or newer
+### Build the code
+In the root folder: `assignment-3/build.sh`
+### Run the binary
+`builds/assignment-3`
