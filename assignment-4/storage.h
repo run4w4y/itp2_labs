@@ -7,6 +7,7 @@
 #include "car.h"
 #include "order.h"
 #include "gateways/auth_token.h"
+#include "payment_method.h"
 
 
 namespace wetaxi::storage {
@@ -54,6 +55,16 @@ namespace wetaxi::storage {
                 make_column("issued", &wetaxi::auth::AuthToken::issued),
                 make_column("expires", &wetaxi::auth::AuthToken::expires),
                 make_column("user_id", &wetaxi::auth::AuthToken::user_id)
+            ),
+            make_table("payment_methods",
+                make_column("id", &wetaxi::PaymentMethod::id, autoincrement(), primary_key()),
+                make_column("card_number", &wetaxi::PaymentMethod::card_number),
+                make_column("year", &wetaxi::PaymentMethod::year),
+                make_column("month", &wetaxi::PaymentMethod::month),
+                make_column("cvc", &wetaxi::PaymentMethod::cvc),
+                make_column("first_name", &wetaxi::PaymentMethod::first_name),
+                make_column("last_name", &wetaxi::PaymentMethod::last_name),
+                make_column("passenger_id", &wetaxi::PaymentMethod::passenger_id)
             )
         );
     };
