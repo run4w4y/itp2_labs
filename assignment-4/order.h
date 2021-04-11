@@ -12,6 +12,6 @@ namespace wetaxi {
         int car_id;
         std::string route_from;
         std::string route_to;
-        time_t timestamp;
+        std::string timestamp;
     };
 }
