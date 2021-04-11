@@ -13,6 +13,8 @@ namespace wetaxi {
         std::string last_name;
         double rating;
 
+        Passenger() {}
+
         Passenger(std::string login, std::string password, std::string first_name, std::string last_name) {
             this->id = -1;
             this->login = login;
