@@ -24,6 +24,8 @@ int main() {
     server.Post("/passenger/signup", bind_storage(wetaxi::PassengerGateway::signup));
     server.Post("/passenger/login", bind_storage(wetaxi::PassengerGateway::login));
     server.Get("/passenger/order_history", bind_storage(wetaxi::PassengerGateway::order_history));
+    server.Get("/passenger/payment_methods", bind_storage(wetaxi::PassengerGateway::payment_methods_get));
+    server.Post("/passenger/payment_methods", bind_storage(wetaxi::PassengerGateway::payment_methods_post));
     
     const std::string ip = "0.0.0.0";
     const int port = 8888;

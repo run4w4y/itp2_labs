@@ -7,12 +7,14 @@
 #include <optional>
 #include <algorithm>
 #include <initializer_list>
+#include <sstream>
 #include <httplib/httplib.h>
 #include <nlohmann/json.hpp>
 #include <sqlite_orm/sqlite_orm.h>
 #include "../storage.h"
 #include "../passenger.h"
 #include "../order.h"
+#include "../payment_method.h"
 #include "auth.h"
 #include "auth_token.h"
 
@@ -79,7 +81,6 @@ namespace wetaxi {
 
                 storage.transaction([&]() {
                     auto user_id = storage.insert(user);
-                    std::cout << "new userid: " << user_id << std::endl;
                     return true;
                 });
 
@@ -94,7 +95,7 @@ namespace wetaxi {
             using namespace std::string_literals;
             const auto required = {"login"s, "password"s};
             auto parsed_body = validate_and_parse<std::string, std::string>(req.body, required);
-                
+
             try { // everything is alright, we got the data
                 auto decoded_body = std::get<std::map<std::string, std::string>>(parsed_body);
                 if (auto token_pair = auth::login<wetaxi::Passenger>(storage, decoded_body["login"], decoded_body["password"])) {
@@ -135,7 +136,97 @@ namespace wetaxi {
                 });
 
                 json j(vj);
-                res.set_content(j.get<std::string>(), "application/json");
+                std::stringstream ss;
+                ss << j;
+                res.set_content(ss.str(), "application/json");
+            } else
+                res.set_content("log in first", "text/plain");
+        }
+
+        // doesnt work
+        static void payment_methods_get(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
+            if (auto user = get_authorization(storage, req)) {
+                using namespace sqlite_orm;
+                using json = nlohmann::json;
+
+                auto found = storage.get_all<wetaxi::PaymentMethod>(
+                    where(c(&Order::passenger_id) == user->id)
+                );
+
+                std::vector<json> vj(0);
+                std::transform(std::begin(found), std::end(found), std::begin(vj), [](auto i) -> json {
+                    return json{
+                        {"id", i.id},
+                        {"card_number", "**** **** **** " + i.card_number.substr(12)},
+                        {"year", i.year},
+                        {"month", i.month},
+                        {"first_name", i.first_name},
+                        {"last_name", i.last_name}
+                    };
+                });
+
+                json j(vj);
+                std::stringstream ss;
+                ss << j;
+                res.set_content(ss.str(), "application/json");
+            } else
+                res.set_content("log in first", "text/plain");
+        }
+        
+        static void payment_methods_post(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
+            if (auto user = get_authorization(storage, req)) {
+                using json = nlohmann::json;
+                using namespace std::string_literals;
+                const auto required = {"card_number"s, "cvc"s, "month"s, "year"s, "first_name"s, "last_name"s};
+                
+                json j = json::parse(req.body);
+
+                std::vector<std::string> missing(0);
+                for (const auto &i : required)
+                    if (j.find(i) == j.end())
+                        missing.push_back(i);
+
+                if (!missing.empty()) {
+                    res.set_content(missing_params_msg(missing), "text/plain");
+                    return;
+                }
+
+                wetaxi::PaymentMethod p{
+                    -1, "", -1, -1, -1, "", "", -1
+                };
+                
+                j.at("card_number").get_to(p.card_number);
+                if (!wetaxi::PaymentMethod::validate_card(p.card_number)) {
+                    res.set_content("ivalid card number", "text/plain");
+                    return;
+                }
+                
+                j.at("cvc").get_to(p.cvc);
+                if (!wetaxi::PaymentMethod::validate_cvc(p.cvc)) {
+                    res.set_content("ivalid cvc", "text/plain");
+                    return;
+                }
+
+                j.at("month").get_to(p.month);
+                if (!wetaxi::PaymentMethod::validate_month(p.month)) {
+                    res.set_content("ivalid month", "text/plain");
+                    return;
+                }
+
+                j.at("year").get_to(p.year);
+                if (!wetaxi::PaymentMethod::validate_year(p.year)) {
+                    res.set_content("invalid year", "text/plain");
+                    return;
+                }
+
+                j.at("first_name").get_to(p.first_name);
+                j.at("last_name").get_to(p.last_name);
+                p.passenger_id = user->id;
+
+                storage.transaction([&]() {
+                    auto payment_id = storage.insert(p);
+                    return true;
+                });
             } else
                 res.set_content("log in first", "text/plain");
         }
