@@ -10,6 +10,8 @@
 #include <sqlite_orm/sqlite_orm.h>
 #include "../storage.h"
 #include "../passenger.h"
+#include "auth.h"
+#include "auth_token.h"
 
 
 namespace wetaxi {
@@ -80,28 +82,28 @@ namespace wetaxi {
                 
             try { // everything is alright, we got the data
                 auto decoded_body = std::get<std::map<std::string, std::string>>(parsed_body);
-
-                {
-                    using namespace sqlite_orm;
-
-                    using User = wetaxi::Passenger;
-
-                    auto found = storage.get_all<User>(
-                        where(c(&User::login) == decoded_body["login"] && c(&User::password) == decoded_body["password"]),
-                        limit(1)
+                if (auto token_pair = auth::login<wetaxi::Passenger>(storage, decoded_body["login"], decoded_body["password"])) {
+                    auto token = token_pair->first;
+                    auto user = token_pair->second;
+                    res.set_content("successfully logged in as " + 
+                        user.first_name + " " + user.last_name + 
+                        " token: " + token.keystring, "text/plain"
                     );
-
-                    if (found.empty()) {
-                        res.set_content("no such user found", "text/plain");
-                        return;
-                    }
-
-                    auto user = found[0];
-                    res.set_content("successfully logged in as " + user.first_name + " " + user.last_name, "text/plain");
+                } else {
+                    res.set_content("naw that didnt work", "text/plain");
                 }
             } catch (const std::bad_variant_access&) { // hell naw man
                 res.set_content(missing_params_msg(std::get<std::vector<std::string>>(parsed_body)), "text/plain");
             }
         }
+
+        // static void order_history(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
+        //     if (!req.has_header("Authorization")) {
+        //         res.set_content("you need to login first", "text/plain");
+        //         return;
+        //     }
+
+
+        // }
     };
 }
