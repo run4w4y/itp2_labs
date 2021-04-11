@@ -36,7 +36,7 @@ namespace wetaxi::auth {
             return std::optional<time_t>{mktime(&tt)};
         }
 
-        const std::string KEYSTRING_SALT = "nigger";
+        const std::string KEYSTRING_SALT = "ssssalty";
         const std::string DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M";
     }
 
@@ -81,10 +81,6 @@ namespace wetaxi::auth {
 
     template<typename UserT>
     AuthToken issue_token(wetaxi::storage::Storage &storage, UserT user) {
-        // take current timestamp add some random shit and we get our token whatever i dont fucking care anyways
-        // need to make a table in db too fuck piss shit
-
-        // what in the actual fuck is wrong with c++ god i hate this
         auto current_timepoint = std::chrono::system_clock::now();
         time_t current_ts = std::chrono::system_clock::to_time_t(current_timepoint);
         std::string current_timestring = format_time(current_ts, DEFAULT_DATETIME_FORMAT);

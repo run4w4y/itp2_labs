@@ -19,8 +19,8 @@ pkgs.stdenv.mkDerivation {
     cmakeFlags = [];
 
     patchPhase = ''
-        cp -r ${sqlite_orm}/include/* .
-        cp -r ${cpp-httplib}/include/* .
+        cp -r ${sqlite_orm}/include/* src/
+        cp -r ${cpp-httplib}/include/* src/
         export CryptoPP_DIR=${pkgs.cryptopp}
         echo ${pkgs.cryptopp}
     '';
@@ -32,6 +32,6 @@ pkgs.stdenv.mkDerivation {
     installPhase = ''
         make
         mkdir -p $out/bin
-        cp -r assignment4 * $out/bin
+        cp src/assignment4 $out/bin
     '';
 }

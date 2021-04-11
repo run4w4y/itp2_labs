@@ -229,5 +229,13 @@ namespace wetaxi {
             } else
                 res.set_content("log in first", "text/plain");
         }
+
+        static void pinned_addresses_get(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
+            // empty for now
+        }
+
+        static void pinned_addresses_post(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
+            // empty for now
+        }
     };
 }
