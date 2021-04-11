@@ -4,12 +4,15 @@
 #include <variant>
 #include <vector>
 #include <string>
+#include <optional>
+#include <algorithm>
 #include <initializer_list>
 #include <httplib/httplib.h>
 #include <nlohmann/json.hpp>
 #include <sqlite_orm/sqlite_orm.h>
 #include "../storage.h"
 #include "../passenger.h"
+#include "../order.h"
 #include "auth.h"
 #include "auth_token.h"
 
@@ -45,8 +48,20 @@ namespace wetaxi {
                 );
         }
 
+        static std::optional<wetaxi::Passenger> get_authorization(wetaxi::storage::Storage &storage, const httplib::Request &req) {
+            if (!req.has_header("Authorization"))
+                return std::nullopt;
+
+            auto val = req.get_header_value("Authorization");
+            std::string keystring = val.substr(val.find(" ") + 1);
+
+            if (auto user = auth::user_by_keystring<wetaxi::Passenger>(storage, keystring))
+                return *user;
+            else
+                return std::nullopt;
+        }
+
         public:
-        // TODO: implement password hashing
         static void signup(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
             using namespace std::string_literals;
             const auto required = {"login"s, "password"s, "first_name"s, "last_name"s};
@@ -57,7 +72,7 @@ namespace wetaxi {
 
                 wetaxi::Passenger user(
                     decoded_body["login"], // TODO: actually logins should be unique bruh
-                    decoded_body["password"], 
+                    auth::hash_pass(decoded_body["password"]), 
                     decoded_body["first_name"], 
                     decoded_body["last_name"]
                 );
@@ -97,13 +112,32 @@ namespace wetaxi {
             }
         }
 
-        // static void order_history(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
-        //     if (!req.has_header("Authorization")) {
-        //         res.set_content("you need to login first", "text/plain");
-        //         return;
-        //     }
+        static void order_history(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
+            if (auto user = get_authorization(storage, req)) {
+                using namespace sqlite_orm;
+                using json = nlohmann::json;
 
+                auto found = storage.get_all<wetaxi::Order>(
+                    where(c(&Order::passenger_id) == user->id)
+                );
 
-        // }
+                std::vector<json> vj(0);
+                std::transform(std::begin(found), std::end(found), std::begin(vj), [](auto i) -> json {
+                    return json{
+                        {"id", i.id},
+                        {"passenger_id", i.passenger_id},
+                        {"driver_id", i.driver_id},
+                        {"car_id", i.car_id},
+                        {"route_from", i.route_from},
+                        {"route_to", i.route_to},
+                        {"timestamp", i.timestamp}
+                    };
+                });
+
+                json j(vj);
+                res.set_content(j.get<std::string>(), "application/json");
+            } else
+                res.set_content("log in first", "text/plain");
+        }
     };
 }

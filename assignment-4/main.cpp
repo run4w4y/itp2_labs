@@ -23,6 +23,7 @@ int main() {
     httplib::Server server;
     server.Post("/passenger/signup", bind_storage(wetaxi::PassengerGateway::signup));
     server.Post("/passenger/login", bind_storage(wetaxi::PassengerGateway::login));
+    server.Get("/passenger/order_history", bind_storage(wetaxi::PassengerGateway::order_history));
     
     const std::string ip = "0.0.0.0";
     const int port = 8888;

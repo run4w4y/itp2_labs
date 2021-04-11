@@ -25,6 +25,17 @@ namespace wetaxi::auth {
             return ss.str();
         }
 
+        std::optional<time_t> parse_time(std::string s, std::string format_str) {
+            std::tm tt;
+            std::stringstream ss(s);
+            ss >> std::get_time(&tt, format_str.c_str());
+            
+            if (ss.fail()) 
+                return std::nullopt;
+            
+            return std::optional<time_t>{mktime(&tt)};
+        }
+
         const std::string KEYSTRING_SALT = "nigger";
         const std::string DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M";
     }
@@ -33,6 +44,7 @@ namespace wetaxi::auth {
     std::string hash_pass(std::string s) {
         using namespace CryptoPP;
 
+        s += KEYSTRING_SALT;
         SHA256 hash;
         std::string digest;
 
@@ -51,12 +63,20 @@ namespace wetaxi::auth {
         );
 
         if (found_token.empty())
-            return std::nullopt;
+            return std::nullopt; // token not found
+
+        AuthToken token = found_token[0];
+        if (auto expires_ts = parse_time(token.expires, DEFAULT_DATETIME_FORMAT)) {
+            auto expires_tp = std::chrono::system_clock::from_time_t(*expires_ts);
+            if (std::chrono::system_clock::now() >= expires_tp) // TODO: might wanna delete the expired token
+                return std::nullopt; // token expired
+        } else
+            return std::nullopt; // couldnt parse the date
         
-        if (auto found_user = storage.get_pointer<UserT>(found_token[0].user_id)) 
+        if (auto found_user = storage.get_pointer<UserT>(token.user_id)) 
             return *found_user;
         else
-            return std::nullopt;
+            return std::nullopt; // user not found
     }
 
     template<typename UserT>
@@ -68,7 +88,7 @@ namespace wetaxi::auth {
         auto current_timepoint = std::chrono::system_clock::now();
         time_t current_ts = std::chrono::system_clock::to_time_t(current_timepoint);
         std::string current_timestring = format_time(current_ts, DEFAULT_DATETIME_FORMAT);
-        std::string raw_keystring = current_timestring + user.login + KEYSTRING_SALT;
+        std::string raw_keystring = current_timestring + user.login;
         std::string keystring = hash_pass(raw_keystring);
 
         auto expires_timepoint = current_timepoint + std::chrono::hours(48);
@@ -90,7 +110,7 @@ namespace wetaxi::auth {
         using namespace sqlite_orm;
 
         auto found = storage.get_all<UserT>(
-            where(c(&UserT::login) == login && c(&UserT::password) == password),
+            where(c(&UserT::login) == login && c(&UserT::password) == hash_pass(password)),
             limit(1)
         );
 
