@@ -15,6 +15,5 @@ namespace wetaxi {
         std::string last_name;
         std::string login;
         std::string password;
-        std::vector<int> order_history;
     };
 }
