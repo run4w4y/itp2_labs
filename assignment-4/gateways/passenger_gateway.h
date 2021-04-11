@@ -119,12 +119,12 @@ namespace wetaxi {
                 using json = nlohmann::json;
 
                 auto found = storage.get_all<wetaxi::Order>(
-                    where(c(&Order::passenger_id) == user->id)
+                    where(c(&wetaxi::Order::passenger_id) == user->id)
                 );
 
                 std::vector<json> vj(0);
-                std::transform(std::begin(found), std::end(found), std::begin(vj), [](auto i) -> json {
-                    return json{
+                for (const auto &i : found)
+                    vj.push_back(json{
                         {"id", i.id},
                         {"passenger_id", i.passenger_id},
                         {"driver_id", i.driver_id},
@@ -132,8 +132,7 @@ namespace wetaxi {
                         {"route_from", i.route_from},
                         {"route_to", i.route_to},
                         {"timestamp", i.timestamp}
-                    };
-                });
+                    });
 
                 json j(vj);
                 std::stringstream ss;
@@ -143,27 +142,25 @@ namespace wetaxi {
                 res.set_content("log in first", "text/plain");
         }
 
-        // doesnt work
         static void payment_methods_get(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
             if (auto user = get_authorization(storage, req)) {
                 using namespace sqlite_orm;
                 using json = nlohmann::json;
 
                 auto found = storage.get_all<wetaxi::PaymentMethod>(
-                    where(c(&Order::passenger_id) == user->id)
+                    where(c(&wetaxi::PaymentMethod::passenger_id) == user->id)
                 );
 
                 std::vector<json> vj(0);
-                std::transform(std::begin(found), std::end(found), std::begin(vj), [](auto i) -> json {
-                    return json{
+                for (const auto &i : found)
+                    vj.push_back(json{
                         {"id", i.id},
                         {"card_number", "**** **** **** " + i.card_number.substr(12)},
                         {"year", i.year},
                         {"month", i.month},
                         {"first_name", i.first_name},
                         {"last_name", i.last_name}
-                    };
-                });
+                    });
 
                 json j(vj);
                 std::stringstream ss;
@@ -227,6 +224,8 @@ namespace wetaxi {
                     auto payment_id = storage.insert(p);
                     return true;
                 });
+
+                res.set_content("all gucci", "text/plain");
             } else
                 res.set_content("log in first", "text/plain");
         }

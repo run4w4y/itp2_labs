@@ -16,7 +16,7 @@ namespace wetaxi {
         int passenger_id;
 
         static bool validate_card(std::string card_number) {
-            return std::all_of(card_number.begin(), card_number.end(), ::isdigit);
+            return std::all_of(card_number.begin(), card_number.end(), ::isdigit) && card_number.size() == 16;
         }
 
         static bool validate_cvc(int cvc) {
