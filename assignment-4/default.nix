@@ -21,6 +21,8 @@ pkgs.stdenv.mkDerivation {
     patchPhase = ''
         cp -r ${sqlite_orm}/include/* .
         cp -r ${cpp-httplib}/include/* .
+        export CryptoPP_DIR=${pkgs.cryptopp}
+        echo ${pkgs.cryptopp}
     '';
 
     configurePhase = ''
