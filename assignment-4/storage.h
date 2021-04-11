@@ -6,6 +6,7 @@
 #include "driver.h"
 #include "car.h"
 #include "order.h"
+#include "gateways/auth_token.h"
 
 
 namespace wetaxi::storage {
@@ -46,6 +47,13 @@ namespace wetaxi::storage {
                 make_column("car_id", &wetaxi::Order::car_id),
                 make_column("route_to", &wetaxi::Order::route_from),
                 make_column("timestamp", &wetaxi::Order::timestamp)
+            ),
+            make_table("tokens",
+                make_column("id", &wetaxi::auth::AuthToken::id, autoincrement(), primary_key()),
+                make_column("keystring", &wetaxi::auth::AuthToken::keystring),
+                make_column("issued", &wetaxi::auth::AuthToken::issued),
+                make_column("expires", &wetaxi::auth::AuthToken::expires),
+                make_column("user_id", &wetaxi::auth::AuthToken::user_id)
             )
         );
     };
