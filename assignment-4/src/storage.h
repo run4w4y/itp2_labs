@@ -8,6 +8,7 @@
 #include "order.h"
 #include "gateways/auth_token.h"
 #include "payment_method.h"
+#include "pinned_address.h"
 
 
 namespace wetaxi::storage {
@@ -65,6 +66,11 @@ namespace wetaxi::storage {
                 make_column("first_name", &wetaxi::PaymentMethod::first_name),
                 make_column("last_name", &wetaxi::PaymentMethod::last_name),
                 make_column("passenger_id", &wetaxi::PaymentMethod::passenger_id)
+            ),
+            make_table("pinned_addresses",
+                make_column("id", &wetaxi::PinnedAddress::id, autoincrement(), primary_key()),
+                make_column("address", &wetaxi::PinnedAddress::address),
+                make_column("passenger_id", &wetaxi::PinnedAddress::passenger_id)
             )
         );
     };

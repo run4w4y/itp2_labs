@@ -15,6 +15,7 @@
 #include "../passenger.h"
 #include "../order.h"
 #include "../payment_method.h"
+#include "../pinned_address.h"
 #include "auth.h"
 #include "auth_token.h"
 
@@ -90,7 +91,6 @@ namespace wetaxi {
             }
         }
 
-        // TODO: need them tokens (and yeah password hashing too)
         static void login(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
             using namespace std::string_literals;
             const auto required = {"login"s, "password"s};
@@ -231,11 +231,52 @@ namespace wetaxi {
         }
 
         static void pinned_addresses_get(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
-            // empty for now
+            if (auto user = get_authorization(storage, req)) {
+                using namespace sqlite_orm;
+                using json = nlohmann::json;
+
+                auto found = storage.get_all<wetaxi::PinnedAddress>(
+                    where(c(&wetaxi::PinnedAddress::passenger_id) == user->id)
+                );
+
+                std::vector<json> vj(0);
+                for (const auto &i : found)
+                    vj.push_back(json{
+                        {"id", i.id},
+                        {"address", i.address}
+                    });
+
+                json j(vj);
+                std::stringstream ss;
+                ss << j;
+                res.set_content(ss.str(), "application/json");
+            } else
+                res.set_content("log in first", "text/plain");
         }
 
         static void pinned_addresses_post(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
-            // empty for now
+            if (auto user = get_authorization(storage, req)) {
+                using namespace sqlite_orm;
+                using json = nlohmann::json;
+
+                json j = json::parse(req.body);
+                auto got_addresses = j.get<std::vector<std::string>>();
+
+                storage.transaction([&]() {
+                    for (const auto &address : got_addresses) {
+                        PinnedAddress t{
+                            -1,
+                            address,
+                            user->id
+                        };
+                        auto address_id = storage.insert(t);
+                    }
+                    return true;
+                });
+
+                res.set_content("all gucci", "text/plain");
+            } else
+                res.set_content("log in first", "text/plain");
         }
     };
 }
