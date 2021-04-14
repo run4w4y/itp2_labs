@@ -37,7 +37,6 @@ namespace wetaxi::storage {
             ),
             make_table("cars",
                 make_column("id", &wetaxi::Car::id, autoincrement(), primary_key()),
-                make_column("owner_id", &wetaxi::Car::owner_id),
                 make_column("model", &wetaxi::Car::model),
                 make_column("registration_plate", &wetaxi::Car::registration_plate),
                 make_column("type", &wetaxi::Car::type)
@@ -48,7 +47,10 @@ namespace wetaxi::storage {
                 make_column("driver_id", &wetaxi::Order::driver_id),
                 make_column("car_id", &wetaxi::Order::car_id),
                 make_column("route_to", &wetaxi::Order::route_from),
-                make_column("timestamp", &wetaxi::Order::timestamp)
+                make_column("timestamp", &wetaxi::Order::timestamp),
+                make_column("status", &wetaxi::Order::status),
+                make_column("price", &wetaxi::Order::price),
+                make_column("payment_method_id", &wetaxi::Order::payment_method_id)
             ),
             make_table("tokens",
                 make_column("id", &wetaxi::auth::AuthToken::id, autoincrement(), primary_key()),

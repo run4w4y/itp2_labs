@@ -1,14 +1,14 @@
 #pragma once
 
 #include <string>
+#include "car_type.h"
 
 
 namespace wetaxi {
     struct Car {
         int id;
-        int owner_id;
         std::string model;
         std::string registration_plate;
-        int type;
+        wetaxi::CarType type;
     };
 }

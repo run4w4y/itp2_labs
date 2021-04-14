@@ -17,28 +17,30 @@
 
 namespace wetaxi::auth {
     namespace {
-        // fucking gross
-        std::string format_time(time_t t, std::string format_str) {
-            std::tm tt = *std::localtime(&t);
-            std::stringstream ss;
-            ss << std::put_time(&tt, format_str.c_str());
-            return ss.str();
-        }
-
-        std::optional<time_t> parse_time(std::string s, std::string format_str) {
-            std::tm tt;
-            std::stringstream ss(s);
-            ss >> std::get_time(&tt, format_str.c_str());
-            
-            if (ss.fail()) 
-                return std::nullopt;
-            
-            return std::optional<time_t>{mktime(&tt)};
-        }
-
         const std::string KEYSTRING_SALT = "ssssalty";
-        const std::string DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M";
     }
+
+    // i should probably have the format/parse function moved somewhere else but im too lazy
+    // fucking gross
+    std::string format_time(time_t t, std::string format_str) {
+        std::tm tt = *std::localtime(&t);
+        std::stringstream ss;
+        ss << std::put_time(&tt, format_str.c_str());
+        return ss.str();
+    }
+
+    std::optional<time_t> parse_time(std::string s, std::string format_str) {
+        std::tm tt;
+        std::stringstream ss(s);
+        ss >> std::get_time(&tt, format_str.c_str());
+        
+        if (ss.fail()) 
+            return std::nullopt;
+        
+        return std::optional<time_t>{mktime(&tt)};
+    }
+
+    const std::string DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M";
 
     // why the fuck do i have to care about security when im literally not using ssl
     std::string hash_pass(std::string s) {
@@ -53,10 +55,12 @@ namespace wetaxi::auth {
         return digest;
     }
 
+    // this is a security concern since drivers/passengers might be able to use their tokens to access other accounts with the same id and login but idfc
     template<typename UserT>
     std::optional<UserT> user_by_keystring(wetaxi::storage::Storage &storage, std::string s) {
         using namespace sqlite_orm;
 
+        std::cout << s << std::endl;
         auto found_token = storage.get_all<AuthToken>(
             where(c(&AuthToken::keystring) == s),
             limit(1)
@@ -66,17 +70,24 @@ namespace wetaxi::auth {
             return std::nullopt; // token not found
 
         AuthToken token = found_token[0];
+        std::cout << token.expires << std::endl;
         if (auto expires_ts = parse_time(token.expires, DEFAULT_DATETIME_FORMAT)) {
             auto expires_tp = std::chrono::system_clock::from_time_t(*expires_ts);
-            if (std::chrono::system_clock::now() >= expires_tp) // TODO: might wanna delete the expired token
+            if (std::chrono::system_clock::now() >= expires_tp) { // TODO: might wanna delete the expired token
+                std::cout << "token expired" << std::endl;
                 return std::nullopt; // token expired
-        } else
+            }
+        } else {
+            std::cout << "couldnt parse the date" << std::endl;
             return std::nullopt; // couldnt parse the date
-        
+        }
+
         if (auto found_user = storage.get_pointer<UserT>(token.user_id)) 
             return *found_user;
-        else
+        else {
+            std::cout << "user not found" << std::endl;
             return std::nullopt; // user not found
+        }
     }
 
     template<typename UserT>

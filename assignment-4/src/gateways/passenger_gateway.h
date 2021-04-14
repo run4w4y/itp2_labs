@@ -16,54 +16,16 @@
 #include "../order.h"
 #include "../payment_method.h"
 #include "../pinned_address.h"
+#include "../car_type.h"
+#include "../order_status.h"
 #include "auth.h"
 #include "auth_token.h"
+#include "gateway.h"
 
 
 namespace wetaxi {
     // i have no idea why is this a class when literally every single member function in it is static 
-    class PassengerGateway {
-        private:
-        template<typename K, typename V>
-        static std::variant<std::map<K, V>, std::vector<K>> validate_and_parse(std::string s, std::initializer_list<const K> required) { 
-            using json = nlohmann::json;
-
-            json encoded = json::parse(s);
-            auto decoded = encoded.get<std::map<K, V>>();
-            std::vector<K> missing(0);
-
-            for (const auto &p : required) 
-                if (decoded.find(p) == std::end(decoded))
-                    missing.push_back(p);
-            
-            if (!missing.empty())
-                return missing;
-            
-            return decoded;
-        }
-
-        static inline std::string missing_params_msg(std::vector<std::string> &missing_params) {
-            return "missing required parameters: " + 
-                std::accumulate(std::begin(missing_params), std::end(missing_params), std::string(), 
-                    [](std::string &s1, std::string &s2) {
-                        return s1.empty() ? s2 : s1 + ", " + s2;
-                    }
-                );
-        }
-
-        static std::optional<wetaxi::Passenger> get_authorization(wetaxi::storage::Storage &storage, const httplib::Request &req) {
-            if (!req.has_header("Authorization"))
-                return std::nullopt;
-
-            auto val = req.get_header_value("Authorization");
-            std::string keystring = val.substr(val.find(" ") + 1);
-
-            if (auto user = auth::user_by_keystring<wetaxi::Passenger>(storage, keystring))
-                return *user;
-            else
-                return std::nullopt;
-        }
-
+    class PassengerGateway : public Gateway {
         public:
         static void signup(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
             using namespace std::string_literals;
@@ -114,7 +76,7 @@ namespace wetaxi {
         }
 
         static void order_history(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
-            if (auto user = get_authorization(storage, req)) {
+            if (auto user = get_authorization<wetaxi::Passenger>(storage, req)) {
                 using namespace sqlite_orm;
                 using json = nlohmann::json;
 
@@ -129,9 +91,11 @@ namespace wetaxi {
                         {"passenger_id", i.passenger_id},
                         {"driver_id", i.driver_id},
                         {"car_id", i.car_id},
+                        {"car_type", i.car_type},
                         {"route_from", i.route_from},
                         {"route_to", i.route_to},
-                        {"timestamp", i.timestamp}
+                        {"timestamp", i.timestamp},
+                        {"status", order_status_to_string(i.status)}
                     });
 
                 json j(vj);
@@ -143,7 +107,7 @@ namespace wetaxi {
         }
 
         static void payment_methods_get(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
-            if (auto user = get_authorization(storage, req)) {
+            if (auto user = get_authorization<wetaxi::Passenger>(storage, req)) {
                 using namespace sqlite_orm;
                 using json = nlohmann::json;
 
@@ -171,7 +135,7 @@ namespace wetaxi {
         }
         
         static void payment_methods_post(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
-            if (auto user = get_authorization(storage, req)) {
+            if (auto user = get_authorization<wetaxi::Passenger>(storage, req)) {
                 using json = nlohmann::json;
                 using namespace std::string_literals;
                 const auto required = {"card_number"s, "cvc"s, "month"s, "year"s, "first_name"s, "last_name"s};
@@ -231,7 +195,7 @@ namespace wetaxi {
         }
 
         static void pinned_addresses_get(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
-            if (auto user = get_authorization(storage, req)) {
+            if (auto user = get_authorization<wetaxi::Passenger>(storage, req)) {
                 using namespace sqlite_orm;
                 using json = nlohmann::json;
 
@@ -255,7 +219,7 @@ namespace wetaxi {
         }
 
         static void pinned_addresses_post(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
-            if (auto user = get_authorization(storage, req)) {
+            if (auto user = get_authorization<wetaxi::Passenger>(storage, req)) {
                 using namespace sqlite_orm;
                 using json = nlohmann::json;
 
@@ -274,6 +238,94 @@ namespace wetaxi {
                     return true;
                 });
 
+                res.set_content("all gucci", "text/plain");
+            } else
+                res.set_content("log in first", "text/plain");
+        }
+
+        // there are no guarantees that price will be the same when the order is made since 
+        // the distance is unknown and i dont care enough
+        static void calculate_price(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
+            if (auto user = get_authorization<wetaxi::Passenger>(storage, req)) {
+                using namespace sqlite_orm;
+                using json = nlohmann::json;
+                using namespace std::string_literals;
+
+                const auto required = {"from", "to", "car_type"};
+
+                json j = json::parse(req.body);
+
+                std::vector<std::string> missing(0);
+                for (const auto &i : required)
+                    if (j.find(i) == j.end())
+                        missing.push_back(i);
+
+                if (!missing.empty()) {
+                    res.set_content(missing_params_msg(missing), "text/plain");
+                    return;
+                }
+
+                std::string car_type_str;
+                j.at("type").get_to(car_type_str);
+                auto car_type = car_type_from_string(car_type_str);
+                if (!car_type) {
+                    res.set_content("invalid string for cartype", "text/plain");
+                    return;
+                }
+
+                std::string from;
+                std::string to;
+                j.at("from").get_to(from);
+                j.at("to").get_to(to);
+
+                int price = calculate_price_(storage, from, to, *car_type);
+
+                res.set_content(std::to_string(price), "text/plain");
+            } else
+                res.set_content("log in first", "text/plain");
+        }
+
+        static void place_order(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
+            if (auto user = get_authorization<wetaxi::Passenger>(storage, req)) {
+                using namespace sqlite_orm;
+                using json = nlohmann::json;
+                using namespace std::string_literals;
+
+                const auto required = {"from", "to", "car_type", "paymend_method"};
+
+                json j = json::parse(req.body);
+
+                std::vector<std::string> missing(0);
+                for (const auto &i : required)
+                    if (j.find(i) == j.end())
+                        missing.push_back(i);
+
+                if (!missing.empty()) {
+                    res.set_content(missing_params_msg(missing), "text/plain");
+                    return;
+                }
+
+                wetaxi::Order order{
+                    -1, -1, -1, -1, wetaxi::CarType::economy, 0, -1, "", "", "", wetaxi::OrderStatus::pending
+                };
+
+                std::string car_type_str;
+                j.at("type").get_to(car_type_str);
+                auto car_type = car_type_from_string(car_type_str);
+                if (!car_type) {
+                    res.set_content("invalid string for cartype", "text/plain");
+                    return;
+                }
+
+                order.car_type = *car_type;
+
+                j.at("from").get_to(order.route_from);
+                j.at("to").get_to(order.route_to);
+                j.at("payment_method").get_to(order.payment_method_id);
+                order.passenger_id = user->id;
+                order.price = calculate_price_(storage, order.route_from, order.route_to, order.car_type);
+
+                storage.insert(order);
                 res.set_content("all gucci", "text/plain");
             } else
                 res.set_content("log in first", "text/plain");
