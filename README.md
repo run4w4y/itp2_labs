@@ -27,14 +27,6 @@ In the root folder: `assignment-3/build.sh`
 
 ## Assignment 4
 ### Requirements
-`sqlite3`, `g++` 7 or newer, [slqite_orm](https://github.com/fnc12/sqlite_orm)
+Local user Nix installation. Install nix: `curl -L https://nixos.org/nix/install | sh`
 ### Build the code
-#### With nix installed
-`nix-build assigment-4`
-#### Without nix installed
-`assignment-4/build.sh`
-### Run the binary
-#### If built with nix-build
-`result/assignment-4`
-#### If built with build.sh
-`builds/assignment-4`
+`nix-build assignment-4`
