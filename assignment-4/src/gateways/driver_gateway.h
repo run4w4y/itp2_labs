@@ -19,7 +19,8 @@ namespace wetaxi {
             auto parsed_body = json::parse(req.body);
             
             if (parsed_body.find("car") == parsed_body.end() || parsed_body.find("driver") == parsed_body.end()) {
-                res.set_content("the fuck did you send nigga", "text/plain");
+                res.status = 400;
+                res.set_content(json_error_message("missing either car or driver field"), "application/json");
                 return;
             }
 
@@ -32,7 +33,8 @@ namespace wetaxi {
                     car_missing.push_back(i);
 
             if (!car_missing.empty()) {
-                res.set_content("in field car: " + missing_params_msg(car_missing), "text/plain");
+                res.status = 400;
+                res.set_content(missing_params_msg(car_missing), "application/json");
                 return;
             }
 
@@ -42,7 +44,8 @@ namespace wetaxi {
                     driver_missing.push_back(i);
             
             if (!driver_missing.empty()) {
-                res.set_content("in field driver: " + missing_params_msg(driver_missing), "text/plain");
+                res.status = 400;
+                res.set_content(missing_params_msg(driver_missing), "application/json");
                 return;
             }
 
@@ -50,7 +53,8 @@ namespace wetaxi {
             car_j.at("type").get_to(car_type_str);
             auto car_type = car_type_from_string(car_type_str);
             if (!car_type) {
-                res.set_content("invalid string for cartype", "text/plain");
+                res.status = 400;
+                res.set_content(json_error_message("invalid string for cartype"), "application/json");
                 return;
             }
 
@@ -79,15 +83,14 @@ namespace wetaxi {
                 if (auto token_pair = auth::login<wetaxi::Driver>(storage, decoded_body["login"], decoded_body["password"])) {
                     auto token = token_pair->first;
                     auto user = token_pair->second;
-                    res.set_content("successfully logged in as " + 
-                        user.first_name + " " + user.last_name + 
-                        " token: " + token.keystring, "text/plain"
-                    );
+                    res.set_content(json_keystring_message(token.keystring), "application/json");
                 } else {
-                    res.set_content("naw that didnt work", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("naw that didnt work"), "application/json");
                 }
             } catch (const std::bad_variant_access&) { // hell naw man
-                res.set_content(missing_params_msg(std::get<std::vector<std::string>>(parsed_body)), "text/plain");
+                res.status = 400;
+                res.set_content(missing_params_msg(std::get<std::vector<std::string>>(parsed_body)), "application/json");
             }
         }
 
@@ -102,7 +105,8 @@ namespace wetaxi {
                 );
 
                 if (found.empty()) {
-                    res.set_content("car was not found", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("car was not found"), "application/json");
                     return;
                 }
 
@@ -114,8 +118,10 @@ namespace wetaxi {
                     {"type", wetaxi::car_type_to_string(car.type)}
                 };
                 res.set_content(ss.str(), "application/json");
-            } else
-                res.set_content("log in first", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
 
         static void order_history(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
@@ -143,8 +149,10 @@ namespace wetaxi {
                 std::stringstream ss;
                 ss << j;
                 res.set_content(ss.str(), "application/json");
-            } else
-                res.set_content("log in first", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
 
         static void update_status(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
@@ -155,7 +163,8 @@ namespace wetaxi {
                 json j = json::parse(req.body);
 
                 if (j.find("is_working") == j.end()) {
-                    res.set_content("is_working field is not present", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("is_working field is not present"), "application/json");
                     return;
                 }
                 
@@ -171,8 +180,10 @@ namespace wetaxi {
                     where(c(&wetaxi::Driver::id) == user->id)
                 );
                 res.set_content("all gucci", "text/plain");
-            } else
-                res.set_content("log in first", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
 
         static void available_orders(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
@@ -185,7 +196,8 @@ namespace wetaxi {
                 );
 
                 if (found_car.empty()) {
-                    res.set_content("couldnt find car", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("couldnt find car"), "application/json");
                     return;
                 }
 
@@ -211,8 +223,10 @@ namespace wetaxi {
                 std::stringstream ss;
                 ss << j;
                 res.set_content(ss.str(), "application/json");
-            } else
-                res.set_content("log in first", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
 
         static void pick_order(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
@@ -223,7 +237,8 @@ namespace wetaxi {
                 json j = json::parse(req.body);
 
                 if (j.find("order_id") == j.end()) {
-                    res.set_content("order_id field is not present", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("order_id field is not present"), "application/json");
                     return;
                 }
                 
@@ -235,7 +250,8 @@ namespace wetaxi {
                 );
 
                 if (found_car.empty()) {
-                    res.set_content("couldnt find car", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("couldnt find car"), "application/json");
                     return;
                 }
 
@@ -279,8 +295,10 @@ namespace wetaxi {
                 });
 
                 res.set_content("all gucci", "text/plain");
-            } else
-                res.set_content("log in first", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
 
         static void finish_ride(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
@@ -296,7 +314,8 @@ namespace wetaxi {
                 );
 
                 if (found.empty()) {
-                    res.set_content("no rides going on atm", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("no rides going on atm"), "application/json");
                     return;
                 }
 
@@ -310,8 +329,10 @@ namespace wetaxi {
                 // we gotta charge the passenger here but we cant do that oh well
 
                 res.set_content("all gucci", "text/plain");
-            } else
-                res.set_content("log in first", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
     };
 }

@@ -35,13 +35,33 @@ namespace wetaxi {
             return decoded;
         }
 
+        static std::string json_message(std::string k, std::string v) {
+            using json = nlohmann::json;
+            json j = json{
+                {k, v}
+            };
+            std::stringstream ss;
+            ss << j;
+            return ss.str();
+        }
+
+        static std::string json_error_message(std::string s) {
+            return json_message("error_message", s);
+        }
+        
+        static std::string json_keystring_message(std::string keystring) {
+            return json_message("token", keystring);
+        }
+
         static inline std::string missing_params_msg(std::vector<std::string> &missing_params) {
-            return "missing required parameters: " + 
-                std::accumulate(std::begin(missing_params), std::end(missing_params), std::string(), 
-                    [](std::string &s1, std::string &s2) {
-                        return s1.empty() ? s2 : s1 + ", " + s2;
-                    }
-                );
+            return json_error_message(
+                "missing required parameters: " + 
+                    std::accumulate(std::begin(missing_params), std::end(missing_params), std::string(), 
+                        [](std::string &s1, std::string &s2) {
+                            return s1.empty() ? s2 : s1 + ", " + s2;
+                        }
+                    )
+            );
         }
 
         template<typename UserT>

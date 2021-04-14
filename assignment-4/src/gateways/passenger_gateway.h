@@ -49,7 +49,8 @@ namespace wetaxi {
 
                 res.set_content("all gucci", "text/plain");
             } catch (const std::bad_variant_access&) { // hell naw man
-                res.set_content(missing_params_msg(std::get<std::vector<std::string>>(parsed_body)), "text/plain");
+                res.status = 400;
+                res.set_content(missing_params_msg(std::get<std::vector<std::string>>(parsed_body)), "application/json");
             }
         }
 
@@ -63,15 +64,14 @@ namespace wetaxi {
                 if (auto token_pair = auth::login<wetaxi::Passenger>(storage, decoded_body["login"], decoded_body["password"])) {
                     auto token = token_pair->first;
                     auto user = token_pair->second;
-                    res.set_content("successfully logged in as " + 
-                        user.first_name + " " + user.last_name + 
-                        " token: " + token.keystring, "text/plain"
-                    );
+                    res.set_content(json_keystring_message(token.keystring), "application/json");
                 } else {
-                    res.set_content("naw that didnt work", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("naw that didnt work"), "application/json");
                 }
             } catch (const std::bad_variant_access&) { // hell naw man
-                res.set_content(missing_params_msg(std::get<std::vector<std::string>>(parsed_body)), "text/plain");
+                res.status = 400;
+                res.set_content(missing_params_msg(std::get<std::vector<std::string>>(parsed_body)), "application/json");
             }
         }
 
@@ -102,8 +102,10 @@ namespace wetaxi {
                 std::stringstream ss;
                 ss << j;
                 res.set_content(ss.str(), "application/json");
-            } else
-                res.set_content("log in first", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
 
         static void payment_methods_get(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
@@ -130,8 +132,10 @@ namespace wetaxi {
                 std::stringstream ss;
                 ss << j;
                 res.set_content(ss.str(), "application/json");
-            } else
-                res.set_content("log in first", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
         
         static void payment_methods_post(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
@@ -148,7 +152,8 @@ namespace wetaxi {
                         missing.push_back(i);
 
                 if (!missing.empty()) {
-                    res.set_content(missing_params_msg(missing), "text/plain");
+                    res.status = 400;
+                    res.set_content(missing_params_msg(missing), "application/json");
                     return;
                 }
 
@@ -158,25 +163,29 @@ namespace wetaxi {
                 
                 j.at("card_number").get_to(p.card_number);
                 if (!wetaxi::PaymentMethod::validate_card(p.card_number)) {
-                    res.set_content("ivalid card number", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("ivalid card number"), "application/json");
                     return;
                 }
                 
                 j.at("cvc").get_to(p.cvc);
                 if (!wetaxi::PaymentMethod::validate_cvc(p.cvc)) {
-                    res.set_content("ivalid cvc", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("ivalid cvc"), "application/json");
                     return;
                 }
 
                 j.at("month").get_to(p.month);
                 if (!wetaxi::PaymentMethod::validate_month(p.month)) {
-                    res.set_content("ivalid month", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("ivalid month"), "application/json");
                     return;
                 }
 
                 j.at("year").get_to(p.year);
                 if (!wetaxi::PaymentMethod::validate_year(p.year)) {
-                    res.set_content("invalid year", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("invalid year"), "application/json");
                     return;
                 }
 
@@ -190,8 +199,10 @@ namespace wetaxi {
                 });
 
                 res.set_content("all gucci", "text/plain");
-            } else
-                res.set_content("log in first", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
 
         static void pinned_addresses_get(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
@@ -214,8 +225,10 @@ namespace wetaxi {
                 std::stringstream ss;
                 ss << j;
                 res.set_content(ss.str(), "application/json");
-            } else
-                res.set_content("log in first", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
 
         static void pinned_addresses_post(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
@@ -239,8 +252,10 @@ namespace wetaxi {
                 });
 
                 res.set_content("all gucci", "text/plain");
-            } else
-                res.set_content("log in first", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
 
         // there are no guarantees that price will be the same when the order is made since 
@@ -261,7 +276,8 @@ namespace wetaxi {
                         missing.push_back(i);
 
                 if (!missing.empty()) {
-                    res.set_content(missing_params_msg(missing), "text/plain");
+                    res.status = 400;
+                    res.set_content(missing_params_msg(missing), "application/json");
                     return;
                 }
 
@@ -269,7 +285,8 @@ namespace wetaxi {
                 j.at("type").get_to(car_type_str);
                 auto car_type = car_type_from_string(car_type_str);
                 if (!car_type) {
-                    res.set_content("invalid string for cartype", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("invalid string for cartype"), "application/json");
                     return;
                 }
 
@@ -280,9 +297,16 @@ namespace wetaxi {
 
                 int price = calculate_price_(storage, from, to, *car_type);
 
-                res.set_content(std::to_string(price), "text/plain");
-            } else
-                res.set_content("log in first", "text/plain");
+                json r;
+                r["estimated_price"] = price;
+                std::stringstream ss;
+                ss << r;
+
+                res.set_content(ss.str(), "application/json");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
 
         static void place_order(wetaxi::storage::Storage &storage, const httplib::Request &req, httplib::Response &res) {
@@ -301,7 +325,8 @@ namespace wetaxi {
                         missing.push_back(i);
 
                 if (!missing.empty()) {
-                    res.set_content(missing_params_msg(missing), "text/plain");
+                    res.status = 400;
+                    res.set_content(missing_params_msg(missing), "application/json");
                     return;
                 }
 
@@ -313,7 +338,8 @@ namespace wetaxi {
                 j.at("type").get_to(car_type_str);
                 auto car_type = car_type_from_string(car_type_str);
                 if (!car_type) {
-                    res.set_content("invalid string for cartype", "text/plain");
+                    res.status = 400;
+                    res.set_content(json_error_message("invalid string for cartype"), "application/json");
                     return;
                 }
 
@@ -327,8 +353,10 @@ namespace wetaxi {
 
                 storage.insert(order);
                 res.set_content("all gucci", "text/plain");
-            } else
-                res.set_content("log in first", "text/plain");
+            } else {
+                res.status = 400;
+                res.set_content(json_error_message("log in first"), "application/json");
+            }
         }
     };
 }
