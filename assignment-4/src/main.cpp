@@ -41,6 +41,7 @@ int main() {
     server.Get("/driver/order_history", bind_storage(wetaxi::DriverGateway::order_history));
     server.Post("/driver/update_status", bind_storage(wetaxi::DriverGateway::update_status));
     server.Get("/driver/available_orders", bind_storage(wetaxi::DriverGateway::available_orders));
+    server.Post("/driver/pick_order", bind_storage(wetaxi::DriverGateway::pick_order));
     server.Post("/driver/finish_ride", bind_storage(wetaxi::DriverGateway::finish_ride));
 
     const std::string ip = "0.0.0.0";
