@@ -30,3 +30,7 @@ In the root folder: `assignment-3/build.sh`
 Local user Nix installation. Install nix: `curl -L https://nixos.org/nix/install | sh`
 ### Build the code
 `nix-build assignment-4`
+### Run the binary
+`result/bin/assignment4`
+### More information
+Full API documentation is available at `assignment-4/README.md`.
